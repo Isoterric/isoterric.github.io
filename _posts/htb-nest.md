@@ -1,9 +1,6 @@
 ---
 title: Hack the Box: Nest
-published: true
-date: 2020-06-20 23:25:01 UTC
-tags: walkthrough,writeup,nest,hackthebox
-canonical_url: 
+layout: post
 ---
 
 ![](https://cdn-images-1.medium.com/max/602/1*5p--f_ZfSAKmqGapWqZFXQ.png)
