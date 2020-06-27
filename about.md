@@ -4,12 +4,19 @@ title: About
 permalink: /about/
 ---
 
-Some information about you!
+Hi! Welcome to my site!
 
-### More Information
+### About me
 
-A place to include any other types of information that you'd like to include about yourself.
+I first started looking into security when I discovered hacking back in high school. Since then I have participated in forumns, conferences, and meetups to get to know other tech professionals. 
+
+My professional experience includes co op placements for tech support, secuirty compliance and devops. My full time experiences includes being a Site Reliability Engineer and Security Operations Engineer. 
+
+My passion in cyber security is offensive security, and I spent my studying periods learning more about it. I enjoyed working on HackTheBox and learning more about OSINT for the [Tracelab](https://www.tracelabs.org/) CTF.  
+
+I also enjoyed doing martial arts and playing video games
 
 ### Contact me
 
-[email@domain.com](mailto:email@domain.com)
+Folow me on Twitter! [link](https://twitter.com/ASN_Sinanju_06S)
+Connect me on LinkedIn! [link](https://www.linkedin.com/in/emily-liu-74a0b6140/)
