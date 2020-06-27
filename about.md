@@ -14,13 +14,10 @@ My professional experience includes co op placements for tech support, secuirty 
 
 My passion in cyber security is offensive security, and I spent my studying periods learning more about it. I enjoyed working on HackTheBox and learning more about OSINT for the [Tracelab](https://www.tracelabs.org/) CTF.
 
-Other cool things I've done:
-
-Volnteered as a Blue Team Mentor for the THE CANADIAN COLLEGIATE CYBER EXERCISE (C3X) Red Forest Competition in 2019. 
-
+Other cool things I've done:  
+Volnteered as a Blue Team Mentor for the THE CANADIAN COLLEGIATE CYBER EXERCISE (C3X) Red Forest Competition in 2019.  
 My team was the winner of the DC416 CTF: Virtual Threat Defense - Hybrid Cloud Edition.  
-
-Offensive Security Certified Professional (OSCP) Certified
+Offensive Security Certified Professional (OSCP) Certified  
 
 On my spare time, I enjoyed doing martial arts and playing video games
 
