@@ -21,4 +21,6 @@ As a judge you have access to all the submissions made by contestants, which mea
 
 If you being competing for a bit and wonder what it's like to be a judge, I highly recommend you give it a try. Overall I had a great time judging and I look forward to being a judge again in the coming competitions.
 
-![TraceLabs Judge Badge](/images/tl-judge-cert.png)
+<p align="center">
+  <img width="460" height="300" src="/images/tl-judge-cert.png">
+</p>
