@@ -6,6 +6,18 @@ permalink: /tl-judging/
 
 Hello readers! Today I'm talking about my experiences as a Judge during TraceLabs CTF.
 
+You might be thinking what is ![TraceLabs](https://www.tracelabs.org/)? \
+
+<p align="center">
+  <img width="400" height="200" src="/images/TL.png">
+</p>
+
+Tracelabs is a non-for-profit organization whose mission is for the reunification of missing individuals with their families, through the use of gathering relevant public data on the internet. This process is also known as open source intelligence gathering (OSINT). They gathered via two ways: \
+
+1. CTF competitions that gamifies the collection of data with prizes to the top contestants. Contestants submit data that they think is relevant and are only given points once its approved from a judge. After the competition, all the data gets synthesis into a report by the intelligence reporting committee - which then gets passed off to the authorities who needs it.
+
+2. Ongoing case boards for missing individuals. Also collecting data but not a competition. After a time period, the data gets synthesis into report and passed off to the authorities.
+
 I've participated in three of their competitions and decided to try out judging. It's definitely different than being a contestant, but in a good way.
 
 Here's some of the things that I really like being a judge and how it differs from being a contestant:
