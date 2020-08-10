@@ -21,6 +21,4 @@ As a judge you have access to all the submissions made by contestants, which mea
 
 If you being competing for a bit and wonder what it's like to be a judge, I highly recommend you give it a try. Overall I had a great time judging and I look forward to being a judge again in the coming competitions.
 
-<p align="center">
-  <img width="460" height="460" src="/images/tl-judge-cert.png">
-</p>
+<blockquote class="badgr-badge" style="font-family: Helvetica, Roboto, &quot;Segoe UI&quot;, Calibri, sans-serif;"><a href="https://api.ca.badgr.io/public/assertions/eFmC2eCLQQq0xSLnD4IWvg"><img width="120px" height="120px" src="https://media.ca.badgr.com/uploads/badges/assertion-eFmC2eCLQQq0xSLnD4IWvg.png"></a><p class="badgr-badge-recipient" style="margin: 0; font-size: 12px; font-style: normal; font-stretch: normal; line-height: 1.67; letter-spacing: normal; text-align: left; color: #555555;"><strong style="font-size: 12px; font-weight: bold; font-style: normal; font-stretch: normal; line-height: 1.67; letter-spacing: normal; text-align: left; color: #000;">Awarded To:</strong><span style="display: block;"> Emily Liu</span></p><script async="async" src="https://ca.badgr.com/assets/widgets.bundle.js"></script></blockquote>
