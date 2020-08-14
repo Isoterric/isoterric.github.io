@@ -20,3 +20,6 @@ My team was the winner of the DC416 CTF: Virtual Threat Defense - Hybrid Cloud E
 Offensive Security Certified Professional (OSCP) Certified  
 
 On my spare time, I enjoyed doing martial arts and playing video games
+
+### Contact Me
+Find me on Discord and Slack
