@@ -20,8 +20,3 @@ My team was the winner of the DC416 CTF: Virtual Threat Defense - Hybrid Cloud E
 Offensive Security Certified Professional (OSCP) Certified  
 
 On my spare time, I enjoyed doing martial arts and playing video games
-
-### Contact me
-
-Folow me on Twitter! [link](https://twitter.com/ASN_Sinanju_06S)
-Connect me on LinkedIn! [link](https://www.linkedin.com/in/emily-liu-74a0b6140/)
